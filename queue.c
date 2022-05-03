@@ -3,11 +3,15 @@
 #include <string.h>
 #include <pthread.h>
 #include <stdbool.h>
-#include <semaphore.h>
 
 
-sem_t seminserir;
-sem_t semretirar;
+
+pthread_mutex_t mutex;
+pthread_cond_t condFull;
+pthread_cond_t condEmpty;
+
+//sem_t seminserir;
+//sem_t semretirar;
 
 #define MAX 50
 #define TAMANHOFILA 3
@@ -63,22 +67,30 @@ bool vazia (fila *f)
 bool inserir(Clock clock, fila *f)
 {
     
-
+    pthread_mutex_lock(&mutex);
     if(cheia(f))
     {
         printf("Fila cheia\n");
-        sem_wait(&semretirar);
+        pthread_cond_wait(&condFull, &mutex);
+        
     }
+    f->fim = (f->fim + 1);
+    f->clocks[f->fim] = clock;
+    f->tam++;
+    
     if (vazia(f)){
         f->clocks[0] = clock;
         f->tam=1;
-        sem_post(&seminserir);
+        
+        //sem_post(&seminserir);
     }else{
         f->fim = (f->fim + 1);
         f->clocks[f->fim] = clock;
         f->tam++;
+        pthread_mutex_unlock(&mutex);
+        pthread_cond_signal(&condEmpty);
     }
-                
+     
     return true;
 }
 
@@ -88,26 +100,37 @@ void imprimir(fila *q)
 
 }
 
+void exibir(fila *f)
+{
+    int pos = f->inicio;
 
+    for (int k = 0; k < tam(f); k++)
+    {
+        printf("(%d, %d, %d) ", f->clocks[pos].p[0], f->clocks[pos].p[1], f->clocks[pos].p[2]);
+        pos = (pos + 1) % MAX;
+    }
+}
 void retirar(fila *f)
 {
     if(vazia(f))
     {
         printf("Fila Vazia\n");
-        sem_wait(&seminserir);
+        pthread_cond_wait(&condEmpty, &mutex);
         
-    }if(cheia(f)){
+    }
+    if(cheia(f)){
         printf("Process: %d, Clock: (%d, %d, %d)\n", 2, f->clocks[f->inicio].p[0], f->clocks[f->inicio].p[1], f->clocks[f->inicio].p[2]);
         f->inicio = (f->inicio + 1);
         f->tam--;
-        sem_post(&semretirar);
+        //sem_post(&semretirar);
         }else{
         printf("Process: %d, Clock: (%d, %d, %d)\n", 2, f->clocks[f->inicio].p[0], f->clocks[f->inicio].p[1], f->clocks[f->inicio].p[2]);
         f->inicio = (f->inicio + 1);
         f->tam--;
-        }
+        pthread_cond_signal(&condFull);
+    }
     
-    //return c;
+    
 }
 void *criarthread (void* f){
     Clock c1;
@@ -130,10 +153,13 @@ void *removerthread (void* f){
 int main(void)
 {
     
-  pthread_t t1, t2;
-    
-  sem_init(&seminserir, 0, 0);
-  sem_init(&semretirar, 0, 0);
+  pthread_t t1;
+  pthread_t t2;
+  //sem_init(&seminserir, 0, 0);
+  //sem_init(&semretirar, 0, 0);
+  pthread_cond_init(&condFull, NULL);
+  pthread_cond_init(&condEmpty, NULL);
+  pthread_mutex_init(&mutex, NULL);
  
   fila *f=malloc(sizeof(fila));
   inicializar(f);
@@ -143,5 +169,6 @@ int main(void)
   
   pthread_join(t1, NULL); 
   pthread_join(t2, NULL); 
+  return 0;
 
 }
