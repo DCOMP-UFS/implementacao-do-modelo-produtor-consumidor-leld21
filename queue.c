@@ -9,7 +9,8 @@
 sem_t seminserir;
 sem_t semretirar;
 
-#define MAX 2
+#define MAX 50
+#define TAMANHOFILA 3
 
 typedef struct 
 {
@@ -28,8 +29,8 @@ typedef struct
 
 void inicializar(fila *f)
 {
-    f->inicio = -1;
-    f->fim = -1;
+    f->inicio = 0;
+    f->fim = 0;
     f->tam = 0;
 }
 
@@ -43,8 +44,7 @@ int tam(fila *f)
 
 bool cheia(fila *f)
 {
-    if(tam(f) == MAX){
-        printf("Fila cheia\n");
+    if(tam(f) == TAMANHOFILA){
         return 1;
     }else{
         return 0;
@@ -54,14 +54,11 @@ bool cheia(fila *f)
 bool vazia (fila *f)
 {
     if(tam(f) == 0){
-        printf("Fila Vazia\n");
         return 1;
     }else{
         return 0;
     }
 }
-
-
 
 bool inserir(Clock clock, fila *f)
 {
@@ -69,17 +66,15 @@ bool inserir(Clock clock, fila *f)
 
     if(cheia(f))
     {
+        printf("Fila cheia\n");
         sem_wait(&semretirar);
     }
     if (vazia(f)){
-        f->inicio = 0;
-        f->fim = 0;
         f->clocks[0] = clock;
         f->tam=1;
         sem_post(&seminserir);
     }else{
         f->fim = (f->fim + 1);
-        //% MAX;
         f->clocks[f->fim] = clock;
         f->tam++;
     }
@@ -96,22 +91,19 @@ void imprimir(fila *q)
 
 void retirar(fila *f)
 {
-    //Clock c;
     if(vazia(f))
     {
+        printf("Fila Vazia\n");
         sem_wait(&seminserir);
         
-    }if(cheia(f))
-        {
-        //c = f->clocks[f->inicio];
-        f->inicio = (f->inicio + 1) % MAX;
-        f->tam--;
+    }if(cheia(f)){
         printf("Process: %d, Clock: (%d, %d, %d)\n", 2, f->clocks[f->inicio].p[0], f->clocks[f->inicio].p[1], f->clocks[f->inicio].p[2]);
+        f->inicio = (f->inicio + 1);
+        f->tam--;
         sem_post(&semretirar);
         }else{
         printf("Process: %d, Clock: (%d, %d, %d)\n", 2, f->clocks[f->inicio].p[0], f->clocks[f->inicio].p[1], f->clocks[f->inicio].p[2]);
-        //c = f->clocks[f->inicio];
-        f->inicio = (f->inicio + 1) % MAX;
+        f->inicio = (f->inicio + 1);
         f->tam--;
         }
     
@@ -121,12 +113,17 @@ void *criarthread (void* f){
     Clock c1;
     c1.p[0]=1;c1.p[1]=1;;c1.p[2]=1;
     inserir(c1,(fila*)f);
+    c1.p[0]=2;c1.p[1]=2;;c1.p[2]=2;
+    inserir(c1,(fila*)f);
     inserir(c1,(fila*)f);
     return NULL;
 }
  
 void *removerthread (void* f){
-    removerthread((fila*)f);
+    retirar((fila*)f);
+    retirar((fila*)f);
+    retirar((fila*)f);
+    retirar((fila*)f);
     return NULL;
 }
 
@@ -140,6 +137,7 @@ int main(void)
  
   fila *f=malloc(sizeof(fila));
   inicializar(f);
+  
   pthread_create(&t1, NULL, criarthread, (void*) f);  
   pthread_create(&t2, NULL, removerthread, (void*) f);  
   
