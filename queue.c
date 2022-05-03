@@ -7,8 +7,8 @@
 
 
 pthread_mutex_t mutex;
-pthread_cond_t condFull;
-pthread_cond_t condEmpty;
+pthread_cond_t filaCheia;
+pthread_cond_t filaVazia;
 
 //sem_t seminserir;
 //sem_t semretirar;
@@ -71,7 +71,7 @@ bool inserir(Clock clock, fila *f)
     if(cheia(f))
     {
         printf("Fila cheia\n");
-        pthread_cond_wait(&condFull, &mutex);
+        pthread_cond_wait(&filaCheia, &mutex);
         
     }
     f->fim = (f->fim + 1);
@@ -88,7 +88,7 @@ bool inserir(Clock clock, fila *f)
         f->clocks[f->fim] = clock;
         f->tam++;
         pthread_mutex_unlock(&mutex);
-        pthread_cond_signal(&condEmpty);
+        pthread_cond_signal(&filaVazia);
     }
      
     return true;
@@ -100,38 +100,43 @@ void imprimir(fila *q)
 
 }
 
-void exibir(fila *f)
-{
-    int pos = f->inicio;
-
-    for (int k = 0; k < tam(f); k++)
-    {
-        printf("(%d, %d, %d) ", f->clocks[pos].p[0], f->clocks[pos].p[1], f->clocks[pos].p[2]);
-        pos = (pos + 1) % MAX;
-    }
-}
 void retirar(fila *f)
 {
     if(vazia(f))
     {
         printf("Fila Vazia\n");
-        pthread_cond_wait(&condEmpty, &mutex);
+        pthread_cond_wait(&filaVazia, &mutex);
         
     }
     if(cheia(f)){
-        printf("Process: %d, Clock: (%d, %d, %d)\n", 2, f->clocks[f->inicio].p[0], f->clocks[f->inicio].p[1], f->clocks[f->inicio].p[2]);
+        //printf("Process: %d, Clock: (%d, %d, %d)\n", 2, f->clocks[f->inicio].p[0], f->clocks[f->inicio].p[1], f->clocks[f->inicio].p[2]);
         f->inicio = (f->inicio + 1);
         f->tam--;
         //sem_post(&semretirar);
+        
         }else{
-        printf("Process: %d, Clock: (%d, %d, %d)\n", 2, f->clocks[f->inicio].p[0], f->clocks[f->inicio].p[1], f->clocks[f->inicio].p[2]);
+        //printf("Process: %d, Clock: (%d, %d, %d)\n", 2, f->clocks[f->inicio].p[0], f->clocks[f->inicio].p[1], f->clocks[f->inicio].p[2]);
         f->inicio = (f->inicio + 1);
         f->tam--;
-        pthread_cond_signal(&condFull);
+        pthread_cond_signal(&filaCheia);
+        
     }
     
-    
+   
 }
+
+
+void mostrarFila(fila *f)
+{
+    int k = f->inicio;
+
+    for (int i = 0; i < tam(f); i++)
+    {
+        printf("(%d, %d, %d) - ", f->clocks[k].p[0], f->clocks[k].p[1], f->clocks[k].p[2]);
+        k = (k + 1) % MAX;
+    }
+}
+
 void *criarthread (void* f){
     Clock c1;
     c1.p[0]=1;c1.p[1]=1;;c1.p[2]=1;
@@ -157,8 +162,8 @@ int main(void)
   pthread_t t2;
   //sem_init(&seminserir, 0, 0);
   //sem_init(&semretirar, 0, 0);
-  pthread_cond_init(&condFull, NULL);
-  pthread_cond_init(&condEmpty, NULL);
+  pthread_cond_init(&filaCheia, NULL);
+  pthread_cond_init(&filaVazia, NULL);
   pthread_mutex_init(&mutex, NULL);
  
   fila *f=malloc(sizeof(fila));
@@ -168,7 +173,8 @@ int main(void)
   pthread_create(&t2, NULL, removerthread, (void*) f);  
   
   pthread_join(t1, NULL); 
-  pthread_join(t2, NULL); 
+  pthread_join(t2, NULL);
+  mostrarFila(f);
   return 0;
 
 }
