@@ -1,149 +1,126 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+/* Arquivo:  
+ *    pth_condition_variable.c
+ *
+ * Propósito:
+ *    Demonstrar Condition Variable em C
+ *
+ *
+ * Compile:  gcc -g -Wall -o sem sem.c -lpthread -lrt
+ * Usage:    ./sem
+ *
+ */
+
+
 #include <pthread.h>
-#include <stdbool.h>
 #include <semaphore.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 
-sem_t seminserir;
-sem_t semretirar;
+#define BufferSize 5 
 
-#define MAX 50
-#define TAMANHOFILA 3
+sem_t empty;
+sem_t full;
+
+int in = 0;
+int out = 0;
+int tamanho=0;
+
+pthread_mutex_t mutex;
+
+void vazio(){
+    if (tamanho==0){
+        printf("Fila Vazia\n");
+
+    }
+}
+
+void cheia(){
+    if (tamanho==BufferSize){
+        printf("Fila Cheia\n");
+    }
+}
 
 typedef struct 
 {
-    //int pid;
-    //int destination;
+    int pid;
+    int destination;
     int p[3];
 } Clock;
 
-typedef struct
-{
-   Clock clocks[MAX];
-   int inicio;
-   int fim;
-   int tam;
-} fila;
+Clock buffer[BufferSize];
 
-void inicializar(fila *f)
-{
-    f->inicio = 0;
-    f->fim = 0;
-    f->tam = 0;
+void *producer(Clock c)
+{   
+    Clock item=c;
+        cheia();
+        sem_wait(&empty);
+        pthread_mutex_lock(&mutex);
+        buffer[in] = item;
+        tamanho++;
+        in = (in+1)%BufferSize;
+        pthread_mutex_unlock(&mutex);
+        sem_post(&full);
+}
+void *consumer()
+{   
+        vazio();
+        sem_wait(&full);
+        pthread_mutex_lock(&mutex);
+        Clock item = buffer[out];
+        printf("Consumer : Remove Item %d,%d,%d from %d\n", item.p[0],item.p[1],item.p[2], out);
+        out = (out+1)%BufferSize;
+        tamanho--;
+        pthread_mutex_unlock(&mutex);
+        sem_post(&empty);
 }
 
-
-int tam(fila *f)
-{
-    return f->tam;
-}
-
-
-
-bool cheia(fila *f)
-{
-    if(tam(f) == TAMANHOFILA){
-        return 1;
-    }else{
-        return 0;
-    }
-}
-
-bool vazia (fila *f)
-{
-    if(tam(f) == 0){
-        return 1;
-    }else{
-        return 0;
-    }
-}
-
-bool inserir(Clock clock, fila *f)
-{
-    
-
-    if(cheia(f))
-    {
-        printf("Fila cheia\n");
-        sem_wait(&semretirar);
-    }
-    if (vazia(f)){
-        f->clocks[f->inicio] = clock;
-        f->tam=1;
-        sem_post(&seminserir);
-    }else{
-        f->fim = (f->fim + 1);
-        f->clocks[f->fim] = clock;
-        f->tam++;
-    }
-    return true;
-}
-
-void imprimir(fila *q)
-{
-    printf("tam = %d\n", tam(q));
-
-}
-
-
-void retirar(fila *f)
-{
-    if(vazia(f))
-    {
-        printf("Fila Vazia\n");
-        sem_wait(&seminserir);
-        
-    }if(cheia(f)){
-        printf("Process: %d, Clock: (%d, %d, %d)\n", 2, f->clocks[f->inicio].p[0], f->clocks[f->inicio].p[1], f->clocks[f->inicio].p[2]);
-        f->inicio = (f->inicio + 1);
-        f->tam--;
-        sem_post(&semretirar);
-        }else{
-        printf("Process: %d, Clock: (%d, %d, %d)\n", 2, f->clocks[f->inicio].p[0], f->clocks[f->inicio].p[1], f->clocks[f->inicio].p[2]);
-        f->inicio = (f->inicio + 1);
-        f->tam--;
-        }
-    
-    //return c;
-}
 void *criarthread (void* f){
     Clock c1;
     c1.p[0]=1;c1.p[1]=1;;c1.p[2]=1;
-    inserir(c1,(fila*)f);
+    producer(c1);
     c1.p[0]=2;c1.p[1]=2;;c1.p[2]=2;
-    //inserir(c1,(fila*)f);
-    //inserir(c1,(fila*)f);
-    //inserir(c1,(fila*)f);
-    //inserir(c1,(fila*)f);
+    producer(c1);
+    producer(c1);
+    producer(c1);
+    c1.p[0]=3;c1.p[1]=3;;c1.p[2]=3;
+    producer(c1);
+    c1.p[0]=4;c1.p[1]=4;;c1.p[2]=4;
+    producer(c1);
     return NULL;
 }
  
-void *removerthread (void* f){
-    retirar((fila*)f);
-    retirar((fila*)f);
-    retirar((fila*)f);
-    retirar((fila*)f);
-    //retirar((fila*)f);
+void *removerthread (){
+    consumer();
+    consumer();
+    consumer();
+    consumer();
+    consumer();
+    consumer();
     return NULL;
 }
 
-int main(void)
-{
-    
-  pthread_t t1, t2;
-    
-  sem_init(&seminserir, 0, 0);
-  sem_init(&semretirar, 0, 0);
- 
-  fila *f=malloc(sizeof(fila));
-  inicializar(f);
-  
-  pthread_create(&t1, NULL, criarthread, (void*) f);  
-  pthread_create(&t2, NULL, removerthread, (void*) f);  
-  
-  pthread_join(t1, NULL); 
-  pthread_join(t2, NULL); 
 
+int main()
+{   
+
+    pthread_t pro,con;
+    pthread_mutex_init(&mutex, NULL);
+    sem_init(&empty,0,BufferSize);
+    sem_init(&full,0,0);
+    
+    
+    pthread_create(&pro, NULL, (void *)criarthread, NULL);
+    
+    pthread_create(&con, NULL, (void *)removerthread, NULL);
+
+    pthread_join(pro, NULL);
+    pthread_join(con, NULL);
+
+    pthread_mutex_destroy(&mutex);
+    sem_destroy(&empty);
+    sem_destroy(&full);
+
+    return 0;
+    
 }
