@@ -113,7 +113,8 @@ void *criarthread (void* f){
     c1.p[0]=1;c1.p[1]=1;;c1.p[2]=1;
     inserir(c1,(fila*)f);
     c1.p[0]=2;c1.p[1]=2;;c1.p[2]=2;
-    inserir(c1,(fila*)f);
+    //inserir(c1,(fila*)f);
+    //inserir(c1,(fila*)f);
     //inserir(c1,(fila*)f);
     //inserir(c1,(fila*)f);
     return NULL;
@@ -123,8 +124,8 @@ void *removerthread (void* f){
     retirar((fila*)f);
     retirar((fila*)f);
     retirar((fila*)f);
-    /*retirar((fila*)f);
-    retirar((fila*)f);*/
+    retirar((fila*)f);
+    //retirar((fila*)f);
     return NULL;
 }
 
